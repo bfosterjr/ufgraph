@@ -10,9 +10,12 @@ ufgraph.py is a simple script which parses the output of the `uf` (un-assemble f
 
  * Python 2.7
  * Graphviz
+   * [http://www.graphviz.org/Download.php ](http://www.graphviz.org/Download.php)
    * make sure the binaries are in your %PATH%
  * graphviz python package (optional, but more stable)
+   * [https://pypi.python.org/pypi/graphviz](https://pypi.python.org/pypi/graphviz)
    * `pip install graphviz`
+
 
 ## Usage ##
 ----------
