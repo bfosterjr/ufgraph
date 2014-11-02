@@ -147,9 +147,7 @@ def do_graph(nodes, filename):
             dot.edge(anode.get_nodeName(),connection)
     #print(dot.source)
     dot.format = 'png'
-    dot.render(filename, view=True)
-    #TODO: is this sleep necessary?
-    time.sleep(2)
+    dot.render(filename, view=True)    
     os.unlink(filename)
 
 if __name__ == "__main__":
@@ -160,3 +158,4 @@ if __name__ == "__main__":
         render_dot_file(filename)
     else:
         do_graph(nodes, filename)
+    exit()
