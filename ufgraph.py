@@ -83,12 +83,12 @@ def build_nodes():
     last_node = None
 
     for line in sys.stdin:
-        line = line.strip()
+        line = line.rstrip()
         print line
         if line.rstrip().endswith(":"):
             #get the new node name
             # graphviz doesn't like "!" or "+".. in node names so strip them
-            new_name = line.split(":")[0].replace("!","").replace("+","")
+            new_name = line.split(":")[0].split()[0].replace("!","").replace("+","")
 
             #make the connection to the new node if necessary
             if None != last_node:
@@ -109,15 +109,28 @@ def build_nodes():
             #.. this shouldn't happen... hmm
             pass
         else:
-            labels = line.split(None,3)
-            label_addr = labels[0].strip()
-            label_opcodes = labels[1].strip()
-            label_inst = labels[2].rstrip()
-            label_remainder = ""
-            if len(labels) > 3:
-                label_remainder = labels[3].rstrip()
-				# graphviz doesn't like "!" or "+".. in node names so strip them
-                jmp_target = label_remainder.split()[0].replace("!","").replace("+","")
+            #private symbols have a space followed by the line number
+            if line.startswith(" "):
+                labels = line.split(None,4)
+                label_addr = labels[1].strip()
+                label_opcodes = labels[2].strip()
+                label_inst = labels[3].rstrip()
+                label_remainder = ""
+                if len(labels) > 4:
+                    label_remainder = labels[4].rstrip()
+                    # graphviz doesn't like "!" or "+".. in node names so strip them
+                    jmp_target = label_remainder.split()[0].replace("!","").replace("+","")
+            #public symbols don't..
+            else:
+                labels = line.split(None,3)
+                label_addr = labels[0].strip()
+                label_opcodes = labels[1].strip()
+                label_inst = labels[2].rstrip()
+                label_remainder = ""
+                if len(labels) > 3:
+                    label_remainder = labels[3].rstrip()
+                    # graphviz doesn't like "!" or "+".. in node names so strip them
+                    jmp_target = label_remainder.split()[0].replace("!","").replace("+","")
 
             new_node.add_label_text(label_addr + " " + label_inst + " " + label_remainder)
 
