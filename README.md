@@ -22,8 +22,15 @@ ufgraph.py is a simple script which parses the output of the `uf` (un-assemble f
 
 From within windbg, simply run the script using the `.shell` command as follows:
 
-`.shell -ci "uf ntdll!rtlinsertentryhashtable" c:\python27\python.exe c:\temp\ufgraph.py`
+`.shell -ci "uf ntdll!rtlinsertentryhashtable" c:\python27\python.exe ufgraph.py`
 
 
 ![](https://raw.githubusercontent.com/bfosterjr/ufgraph/master/example.png)
 
+
+You can also build a call graph at your current instruction pointer (EIP/RIP) and have ufgraph highlight the this basic block as follows:
+
+`.shell -ci "r $ip; uf $ip" c:\python27\python.exe ufgraph.py`
+
+
+![](https://raw.githubusercontent.com/bfosterjr/ufgraph/master/example_ip.png)

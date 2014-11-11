@@ -28,16 +28,23 @@ import time
 import subprocess
 
 try:
-	from graphviz import Digraph
-	has_graphviz = True
+    from graphviz import Digraph
+    has_graphviz = True
 except ImportError:
-	has_graphviz = False
+    has_graphviz = False
 
 class dotnode:
     def __init__(self, name):
         self.node_name = name
         self.label_text = []
         self.connecting_nodes = []
+        self.addcolor = False
+
+    def add_color(self):
+        self.addcolor = True
+
+    def has_color(self):
+        return self.addcolor
 
     def get_nodeName(self):
         return self.node_name
@@ -53,7 +60,10 @@ class dotnode:
 
     def get_dotformat_node(self):
         dotstr = self.node_name
-        dotstr += "[label=\""
+        dotstr += "["
+        if self.addcolor:
+            dotstr += "style=filled fillcolor=gray "
+        dotstr += "label=\""
         dotstr += self.get_dotformat_label()
         dotstr += "\"]"
         return dotstr
@@ -61,7 +71,7 @@ class dotnode:
     def get_dotformat_label(self):
         label = ""
         for label_line in self.label_text:
-			#force it to be left justified
+            #force it to be left justified
             label += label_line + "\\l"
         return label
 
@@ -81,10 +91,11 @@ def build_nodes():
     last_line_ret = False
     new_node = None
     last_node = None
+    ipaddr = None
 
     for line in sys.stdin:
         line = line.rstrip()
-        print line
+        #print line
         if line.rstrip().endswith(":"):
             #get the new node name
             # graphviz doesn't like "!" or "+".. in node names so strip them
@@ -105,6 +116,8 @@ def build_nodes():
                 last_node = new_node
                 new_node = None
             pass
+        elif line.startswith("$ip"):
+            ipaddr = line.split("=")[1]
         elif not new_node:
             #.. this shouldn't happen... hmm
             pass
@@ -133,6 +146,8 @@ def build_nodes():
                     jmp_target = label_remainder.split()[0].replace("!","").replace("+","")
 
             new_node.add_label_text(label_addr + " " + label_inst + " " + label_remainder)
+            if ipaddr and label_addr.replace("`","").startswith(ipaddr):
+                new_node.add_color()
 
             last_line_ret = False
             last_line_jump = False
@@ -176,7 +191,10 @@ def do_graph(nodes, filename):
     dot = Digraph(name='windbg_graph', node_attr={'shape': 'box', 'fontname' : 'Lucida Console'}, graph_attr={'splines':'polyline'})
 
     for anode in nodes:
-        dot.node(anode.get_nodeName(),anode.get_dotformat_label())
+        if(anode.has_color()):
+            dot.node(anode.get_nodeName(),anode.get_dotformat_label(), _attributes={'style':'filled', 'fillcolor':'gray'})
+        else:
+            dot.node(anode.get_nodeName(),anode.get_dotformat_label())
     for anode in nodes:
         connections = anode.get_connections()
         for connection in connections:
