@@ -1,7 +1,7 @@
 # ufgraph.py #
 ----------
 
-ufgraph.py is a simple script which parses the output of the `uf` (un-assemble function) command in windbg and uses graphviz to generate a control flow graph as a PNG (and displays it)
+ufgraph.py is a simple script which parses the output of the `uf` (un-assemble function) command in windbg and uses graphviz to generate a control flow graph as a PNG/SVG/PDF/GIF (see -o option) and displays it
 
 *Please note, that some additional options (eg: `/c`) to the `uf` command are not supported and will likely break the output parsing or graph rendering.*
 
@@ -28,9 +28,14 @@ From within windbg, simply run the script using the `.shell` command as follows:
 ![](https://raw.githubusercontent.com/bfosterjr/ufgraph/master/example.png)
 
 
-You can also build a call graph at your current instruction pointer (EIP/RIP) and have ufgraph highlight the this basic block as follows:
+It is also possible to build a call graph at your current instruction pointer (EIP/RIP) and have ufgraph highlight the this basic block as follows:
 
 `.shell -ci "r $ip; uf $ip" c:\python27\python.exe ufgraph.py`
 
 
 ![](https://raw.githubusercontent.com/bfosterjr/ufgraph/master/example_ip.png)
+
+
+It is also possible to output multiple call graphs for each frame in the call stack as follows:
+
+`.shell -ci "!for_each_frame \"r $scopeip; uf $scopeip\"" python.exe ufgraph.py`
