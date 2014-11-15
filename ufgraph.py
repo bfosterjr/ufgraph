@@ -24,8 +24,11 @@ import sys
 import os
 import tempfile
 import uuid
-import time
 import subprocess
+import argparse
+
+outputformat = 'png'
+stackwalk = False
 
 try:
     from graphviz import Digraph
@@ -92,14 +95,19 @@ def build_nodes():
     new_node = None
     last_node = None
     ipaddr = None
+    firstline = True
 
     for line in sys.stdin:
         line = line.rstrip()
-        #print line
-        if line.rstrip().endswith(":"):
+
+        #break out at the end of a frame
+        if line.startswith("_ _ _ _") and not firstline:
+            break;
+        elif line.endswith(":"):
             #get the new node name
             # graphviz doesn't like "!" or "+".. in node names so strip them
-            new_name = line.split(":")[0].split()[0].replace("!","").replace("+","")
+            #new_name = line.split(":")[0].split()[0].replace("!","").replace("+","")
+            new_name = line.rsplit(":",1)[0].split()[0].replace("!","").replace("+","")
 
             #make the connection to the new node if necessary
             if None != last_node:
@@ -116,10 +124,10 @@ def build_nodes():
                 last_node = new_node
                 new_node = None
             pass
-        elif line.startswith("$ip"):
+        elif line.startswith("$ip") or line.startswith("$scopeip"):
             ipaddr = line.split("=")[1]
         elif not new_node:
-            #.. this shouldn't happen... hmm
+            #.. skip lines that fall outside of a node
             pass
         else:
             #private symbols have a space followed by the line number
@@ -161,6 +169,8 @@ def build_nodes():
             elif label_inst.startswith("j"):
                 new_node.add_connection(jmp_target)
 
+            firstline = False
+
     if new_node and new_node not in nodes:
         nodes += [new_node]
     return nodes
@@ -180,14 +190,14 @@ def create_dot_file(nodes, filename):
 
 #launch 'dot' from graphviz and then use the default png viewer via the shell
 def render_dot_file(filename):
-    pngfilename = filename + ".png"
-    dotproc = subprocess.Popen(['dot','-Tpng','-o',pngfilename,filename])
+    graph_file_path = filename + "." + outputformat
+    dotproc = subprocess.Popen(['dot','-T' + outputformat,'-o',graph_file_path,filename])
     dotproc.wait()
     os.unlink(filename)
-    imageproc = subprocess.Popen([pngfilename],shell=True)
+    return graph_file_path
     
 #use graphviz package
-def do_graph(nodes, filename):
+def render_graph(nodes, filename):
     dot = Digraph(name='windbg_graph', node_attr={'shape': 'box', 'fontname' : 'Lucida Console'}, graph_attr={'splines':'polyline'})
 
     for anode in nodes:
@@ -195,21 +205,56 @@ def do_graph(nodes, filename):
             dot.node(anode.get_nodeName(),anode.get_dotformat_label(), _attributes={'style':'filled', 'fillcolor':'gray'})
         else:
             dot.node(anode.get_nodeName(),anode.get_dotformat_label())
-    for anode in nodes:
         connections = anode.get_connections()
         for connection in connections:
             dot.edge(anode.get_nodeName(),connection)
+
     #print(dot.source)
-    dot.format = 'png'
-    dot.render(filename, view=True)    
+    dot.format = outputformat
+    graph_file = dot.render(filename, view=False)
     os.unlink(filename)
+    return  graph_file
+
+def parseArgs():
+    global outputformat
+    global stackwalk
+
+    parser = argparse.ArgumentParser(description="Reads the output of the 'uf' Windbg command from stdin and generates"
+                                                 "a graphviz call garph for the funciton")
+    parser.add_argument("-o", "--output", help="output format [png, svg, pdf, gif]. Default is png.")
+    parser.add_argument("-s", "--stackwalk", action="store_true", help="the input contains a 'uf' call for each stack frame (implies svg output)")
+    args = parser.parse_args()
+
+    if args.output:
+        if args.output in ['png','svg', 'gif', 'pdf']:
+            outputformat = args.output
+        else:
+            parser.print_usage()
+            quit()
+    if args.stackwalk:
+        stackwalk = True
+
+def build_graph_image():
+    nodes = build_nodes()
+    filename = tempfile.gettempdir() + os.sep + str(uuid.uuid4())
+    graph_image = None
+    if len(nodes) > 0:
+        if not has_graphviz:
+            create_dot_file(nodes, filename)
+            graph_image = render_dot_file(filename)
+        else:
+            graph_image = render_graph(nodes, filename)
+    return graph_image
 
 if __name__ == "__main__":
-    filename = tempfile.gettempdir() + os.sep + str(uuid.uuid4())
-    nodes = build_nodes()
-    if not has_graphviz:
-        create_dot_file(nodes, filename)
-        render_dot_file(filename)
-    else:
-        do_graph(nodes, filename)
+    parseArgs()
+    graph_images = []
+    graph_image = build_graph_image()
+    while graph_image:
+        graph_images += [graph_image]
+        graph_image = build_graph_image()
+
+    for imagefile in graph_images:
+        imageproc = subprocess.Popen([imagefile],shell=True)
+
     exit()
