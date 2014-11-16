@@ -302,7 +302,7 @@ def build_html(graph_images):
     htmlfd.write("</TABLE></TD>")
     #iframe
     htmlfd.write("<TD WIDTH=100% HEIGHT=100%>")
-    htmlfd.write("<IFRAME NAME=GRAPHFRAME WIDTH=100% HEIGHT=100% SRC=\"" + graph_images[0] + "\"></IFRAME>")
+    htmlfd.write("<IFRAME NAME=GRAPHFRAME WIDTH=100% HEIGHT=100% SRC=\"" + os.path.basename(graph_images[0]) + "\"></IFRAME>")
     htmlfd.write("</TD></TR></TABLE>")
     htmlfd.write("</HTML>")
     htmlfd.close()
