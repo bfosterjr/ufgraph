@@ -281,9 +281,9 @@ def build_html(graph_images):
     index = 0
     html_page = outputdir + "graph.html"
 
-    print str(len(graph_images))
-    print str(len(frames))
-    print frames
+    #print str(len(graph_images))
+    #print str(len(frames))
+    #print frames
 
     htmlfd = open(html_page,"w+")
     htmlfd.write("<HTML>")
@@ -295,14 +295,22 @@ def build_html(graph_images):
     htmlfd.write("<TR><TD style=\"white-space:nowrap;\">STACK FRAMES:</TD></TR>")
     for graph_image in graph_images:
         htmlfd.write("<TR><TD style=\"white-space:nowrap;\">")
-        htmlfd.write("<A HREF=" + os.path.basename(graph_image) + " TARGET=\"GRAPHFRAME\">")
+
+        htmlfd.write("<SPAN style=\"border: 1px solid black\" ONCLICK=\"document.getElementById('GRAPHIMG').src='" +
+                     os.path.basename(graph_image) + "'\">")
         htmlfd.write(str(index) + "=" + frames[index])
-        htmlfd.write("</A></TD></TR>")
+        htmlfd.write("</SPAN></TD></TR>")
+
+        #htmlfd.write("<A HREF=" + os.path.basename(graph_image) + " TARGET=\"GRAPHFRAME\">")
+        #htmlfd.write(str(index) + "=" + frames[index])
+        #htmlfd.write("</A></TD></TR>")
         index += 1
+
     htmlfd.write("</TABLE></TD>")
     #iframe
     htmlfd.write("<TD WIDTH=100% HEIGHT=100%>")
-    htmlfd.write("<IFRAME NAME=GRAPHFRAME WIDTH=100% HEIGHT=100% SRC=\"" + os.path.basename(graph_images[0]) + "\"></IFRAME>")
+    htmlfd.write("<IMG ID=\"GRAPHIMG\" WIDTH=100% SRC=\"" + os.path.basename(graph_images[0]) + "\">")
+    #htmlfd.write("<IFRAME NAME=GRAPHFRAME WIDTH=100% HEIGHT=100% SRC=\"" + os.path.basename(graph_images[0]) + "\"></IFRAME>")
     htmlfd.write("</TD></TR></TABLE>")
     htmlfd.write("</HTML>")
     htmlfd.close()
