@@ -28,7 +28,10 @@ import subprocess
 import argparse
 
 outputformat = 'png'
-stackwalk = False
+stackwalkhtml = False
+frames = []
+outputdir = None
+noopen = False
 
 try:
     from graphviz import Digraph
@@ -89,6 +92,7 @@ class dotnode:
 
 
 def build_nodes():
+    global frames
     nodes = []
     last_line_jump = False
     last_line_ret = False
@@ -103,6 +107,8 @@ def build_nodes():
         #break out at the end of a frame
         if line.startswith("_ _ _ _") and not firstline:
             break;
+        elif line.startswith("_ _ _ _"):
+            continue;
         elif line.endswith(":"):
             #get the new node name
             # graphviz doesn't like "!" or "+".. in node names so strip them
@@ -128,7 +134,10 @@ def build_nodes():
             ipaddr = line.split("=")[1]
         elif not new_node:
             #.. skip lines that fall outside of a node
-            pass
+            if firstline:
+                tokens = line.split()
+                #if tokens[len(tokens) - 1] not in frames:
+                frames += [ tokens[len(tokens) - 1] ]
         else:
             #private symbols have a space followed by the line number
             if line.startswith(" "):
@@ -169,7 +178,7 @@ def build_nodes():
             elif label_inst.startswith("j"):
                 new_node.add_connection(jmp_target)
 
-            firstline = False
+        firstline = False
 
     if new_node and new_node not in nodes:
         nodes += [new_node]
@@ -177,7 +186,8 @@ def build_nodes():
 
 #custom 'dot' file creation function
 def create_dot_file(nodes, filename):
-    graph_hdr = "digraph{\nnode [fontname=\"Lucida Console\",shape=\"box\"];\ngraph [fontname=\"Lucida Console\",fontsize=10.0,labeljust=l,nojustify=true,splines=polyline];\n"
+    graph_hdr = "digraph{\nnode [fontname=\"Lucida Console\",shape=\"box\"];\ngraph [fontname=\"Lucida Console\"," \
+                "fontsize=10.0,labeljust=l,nojustify=true,splines=polyline];\n"
     f = open(filename,'w')
     f.write(graph_hdr)
     for node in nodes:
@@ -217,26 +227,46 @@ def render_graph(nodes, filename):
 
 def parseArgs():
     global outputformat
-    global stackwalk
+    global stackwalkhtml
+    global outputdir
+    global noopen
 
     parser = argparse.ArgumentParser(description="Reads the output of the 'uf' Windbg command from stdin and generates"
                                                  "a graphviz call garph for the funciton")
-    parser.add_argument("-o", "--output", help="output format [png, svg, pdf, gif]. Default is png.")
-    parser.add_argument("-s", "--stackwalk", action="store_true", help="the input contains a 'uf' call for each stack frame (implies svg output)")
+    parser.add_argument("-of", "--outputformat", help="output format [png, svg, pdf, gif]. Default is png.")
+    parser.add_argument("-od", "--outputdir", help="output directory. Default is <TEMP>.")
+    parser.add_argument("-no", "--noopen", action="store_true", help="do not open any graph / html once generated")
+    parser.add_argument("-sh", "--stackwalkhtml", action="store_true", help="generate a graph for each stack frame "
+                                                                            "(input must be a 'uf' for each frame) and"
+                                                                            "link them together with a simple html page."
+                                                                            " Note:Forces output format to be SVG.")
     args = parser.parse_args()
 
-    if args.output:
-        if args.output in ['png','svg', 'gif', 'pdf']:
-            outputformat = args.output
+    if args.outputformat:
+        if args.outputformat in ['png','svg', 'gif', 'pdf']:
+            outputformat = args.outputformat
         else:
             parser.print_usage()
             quit()
-    if args.stackwalk:
-        stackwalk = True
+
+    if args.stackwalkhtml:
+        stackwalkhtml = True
+        outputformat = 'svg'
+
+    if args.outputdir and os.path.isdir(args.outputdir):
+        outputdir = args.outputdir
+        if not outputdir.endswith(os.sep):
+            outputdir = outputdir + os.sep
+    else:
+        outputdir = tempfile.gettempdir() + os.sep
+
+    if args.noopen:
+        noopen = True
 
 def build_graph_image():
+    global outputdir
     nodes = build_nodes()
-    filename = tempfile.gettempdir() + os.sep + str(uuid.uuid4())
+    filename = outputdir + str(uuid.uuid4())
     graph_image = None
     if len(nodes) > 0:
         if not has_graphviz:
@@ -246,7 +276,41 @@ def build_graph_image():
             graph_image = render_graph(nodes, filename)
     return graph_image
 
+
+def build_html(graph_images):
+    index = 0
+    html_page = outputdir + "graph.html"
+
+    print str(len(graph_images))
+    print str(len(frames))
+    print frames
+
+    htmlfd = open(html_page,"w+")
+    htmlfd.write("<HTML>")
+
+    #outer table
+    htmlfd.write("<TABLE HEIGHT=100% BORDER=1><TR HEIGHT=100%><TD VALIGN=TOP>")
+    #inner table
+    htmlfd.write("<TABLE>")
+    htmlfd.write("<TR><TD style=\"white-space:nowrap;\">STACK FRAMES:</TD></TR>")
+    for graph_image in graph_images:
+        htmlfd.write("<TR><TD style=\"white-space:nowrap;\">")
+        htmlfd.write("<A HREF=" + os.path.basename(graph_image) + " TARGET=\"GRAPHFRAME\">")
+        htmlfd.write(str(index) + "=" + frames[index])
+        htmlfd.write("</A></TD></TR>")
+        index += 1
+    htmlfd.write("</TABLE></TD>")
+    #iframe
+    htmlfd.write("<TD WIDTH=100% HEIGHT=100%>")
+    htmlfd.write("<IFRAME NAME=GRAPHFRAME WIDTH=100% HEIGHT=100% SRC=\"" + graph_images[0] + "\"></IFRAME>")
+    htmlfd.write("</TD></TR></TABLE>")
+    htmlfd.write("</HTML>")
+    htmlfd.close()
+
+    return html_page
+
 if __name__ == "__main__":
+
     parseArgs()
     graph_images = []
     graph_image = build_graph_image()
@@ -254,7 +318,12 @@ if __name__ == "__main__":
         graph_images += [graph_image]
         graph_image = build_graph_image()
 
-    for imagefile in graph_images:
-        imageproc = subprocess.Popen([imagefile],shell=True)
+    if stackwalkhtml:
+        html_page = build_html(graph_images)
+        if not noopen:
+            htmlproc = subprocess.Popen([html_page],shell=True)
+    elif not noopen:
+        for imagefile in graph_images:
+            imageproc = subprocess.Popen([imagefile],shell=True)
 
     exit()
