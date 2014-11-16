@@ -298,7 +298,11 @@ def build_html(graph_images):
 
         htmlfd.write("<SPAN style=\"border: 1px solid black\" ONCLICK=\"document.getElementById('GRAPHIMG').src='" +
                      os.path.basename(graph_image) + "'\">")
-        htmlfd.write(str(index) + "=" + frames[index])
+        if index + 1 > len(frames):
+            frame_name = "(no name)"
+        else:
+            frame_name = frames[index]
+        htmlfd.write(str(index) + "=" + frame_name)
         htmlfd.write("</SPAN></TD></TR>")
 
         #htmlfd.write("<A HREF=" + os.path.basename(graph_image) + " TARGET=\"GRAPHFRAME\">")
