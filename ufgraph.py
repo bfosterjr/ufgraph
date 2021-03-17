@@ -26,6 +26,7 @@ import tempfile
 import uuid
 import subprocess
 import argparse
+import re
 
 outputformat = 'png'
 stackwalkhtml = False
@@ -134,6 +135,8 @@ def build_nodes():
         elif not new_node:
             #.. skip lines that fall outside of a node
             if firstline:
+                #remvoe source path
+                line = re.sub(r'\[.*\]','', line)
                 tokens = line.split()
                 #if tokens[len(tokens) - 1] not in frames:
                 frames += [ tokens[len(tokens) - 1] ]
