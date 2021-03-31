@@ -26,6 +26,7 @@ import tempfile
 import uuid
 import subprocess
 import argparse
+import re
 
 outputformat = 'png'
 stackwalkhtml = False
@@ -106,14 +107,13 @@ def build_nodes():
 
         #break out at the end of a frame
         if line.startswith("_ _ _ _") and not firstline:
-            break;
+            break
         elif line.startswith("_ _ _ _"):
-            continue;
+            continue
         elif line.endswith(":"):
             #get the new node name
-            # graphviz doesn't like "!" or "+".. in node names so strip them
             #new_name = line.split(":")[0].split()[0].replace("!","").replace("+","")
-            new_name = line.rsplit(":",1)[0].split()[0].replace("!","").replace("+","")
+            new_name = quoteNodeName(line.rsplit(":",1)[0].split()[0])
 
             #make the connection to the new node if necessary
             if None != last_node:
@@ -135,6 +135,8 @@ def build_nodes():
         elif not new_node:
             #.. skip lines that fall outside of a node
             if firstline:
+                #remvoe source path
+                line = re.sub(r'\[.*\]','', line)
                 tokens = line.split()
                 #if tokens[len(tokens) - 1] not in frames:
                 frames += [ tokens[len(tokens) - 1] ]
@@ -148,8 +150,7 @@ def build_nodes():
                 label_remainder = ""
                 if len(labels) > 4:
                     label_remainder = labels[4].rstrip()
-                    # graphviz doesn't like "!" or "+".. in node names so strip them
-                    jmp_target = label_remainder.split()[0].replace("!","").replace("+","")
+                    jmp_target = quoteNodeName(label_remainder.split()[0])
             #public symbols don't..
             else:
                 labels = line.split(None,3)
@@ -159,8 +160,7 @@ def build_nodes():
                 label_remainder = ""
                 if len(labels) > 3:
                     label_remainder = labels[3].rstrip()
-                    # graphviz doesn't like "!" or "+".. in node names so strip them
-                    jmp_target = label_remainder.split()[0].replace("!","").replace("+","")
+                    jmp_target = quoteNodeName(label_remainder.split()[0])
 
             new_node.add_label_text(label_addr + " " + label_inst + " " + label_remainder)
             if ipaddr and label_addr.replace("`","").startswith(ipaddr):
@@ -196,6 +196,7 @@ def create_dot_file(nodes, filename):
     for node in nodes:
         f.write(node.get_dotformat_connections())
     f.write("\n}")
+
     f.close()
 
 #launch 'dot' from graphviz and then use the default png viewer via the shell
@@ -205,11 +206,10 @@ def render_dot_file(filename):
     dotproc.wait()
     os.unlink(filename)
     return graph_file_path
-    
+
 #use graphviz package
 def render_graph(nodes, filename):
     dot = Digraph(name='windbg_graph', node_attr={'shape': 'box', 'fontname' : 'Lucida Console'}, graph_attr={'splines':'polyline'})
-
     for anode in nodes:
         if(anode.has_color()):
             dot.node(anode.get_nodeName(),anode.get_dotformat_label(), _attributes={'style':'filled', 'fillcolor':'gray'})
@@ -320,6 +320,11 @@ def build_html(graph_images):
     htmlfd.close()
 
     return html_page
+
+# graphviz doesn't like "!" or "+".. in node names so strip them
+# quote the name resolves the issue
+def quoteNodeName(name):
+    return "\"" + name + "\""
 
 if __name__ == "__main__":
 
